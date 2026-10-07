@@ -1,0 +1,18 @@
+{
+    "raw_directory": "C:\\Users\\al774\\.cache\\kagglehub\\datasets\\vadimzavadskyi\\kolektorsdd2-ksdd2\\versions\\1",
+    "total_files": 6679,
+    "total_images": 6672,
+    "total_txt_annotations": 0,
+    "total_gt_masks": 3336,
+    "subdirectories": [
+        "test",
+        "train"
+    ],
+    "sample_resolutions": {
+        "min_width": 210,
+        "max_width": 231,
+        "min_height": 624,
+        "max_height": 647,
+        "sample_count": 50
+    }
+}

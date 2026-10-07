@@ -1,0 +1,23 @@
+# Core Deep Learning and Computer Vision
+torch>=2.0.0
+torchvision>=0.15.0
+numpy>=1.24.0
+pandas>=2.0.0
+scikit-learn>=1.2.0
+pillow>=9.5.0
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# Kaggle Dataset Integration
+kagglehub>=0.2.0
+
+# API and Deployment
+fastapi>=0.100.0
+uvicorn[standard]>=0.22.0
+python-multipart>=0.0.6
+pydantic>=2.0.0
+
+# Testing & Quality Assurance
+pytest>=7.3.0
+httpx>=0.24.0
+requests>=2.31.0

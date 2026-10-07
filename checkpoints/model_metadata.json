@@ -1,0 +1,49 @@
+{
+    "model_name": "ResNet18-Transfer-Defect-Classifier",
+    "model_type": "transfer",
+    "architecture": "ResNet-18 ImageNet Pretrained Backbone + Fine-Tuned Head",
+    "num_classes": 2,
+    "classes": [
+        "normal",
+        "defective"
+    ],
+    "class_to_idx": {
+        "normal": 0,
+        "defective": 1
+    },
+    "image_size": 224,
+    "mean": [
+        0.485,
+        0.456,
+        0.406
+    ],
+    "std": [
+        0.229,
+        0.224,
+        0.225
+    ],
+    "operating_threshold": 0.21000000000000002,
+    "test_metrics": {
+        "accuracy": 0.9640718562874252,
+        "precision": 0.7777777777777778,
+        "recall": 0.9245283018867925,
+        "f1": 0.8448275862068966,
+        "f2": 0.8909090909090909,
+        "roc_auc": 0.9815111185983827,
+        "pr_auc": 0.9530922457903078,
+        "avg_latency_ms": 46.8405949141451,
+        "throughput_fps": 21.349002971309748,
+        "decision_threshold": 0.21000000000000002
+    },
+    "confusion_matrix": [
+        [
+            434,
+            14
+        ],
+        [
+            4,
+            49
+        ]
+    ],
+    "timestamp": "2026-10-07T08:23:52Z"
+}
