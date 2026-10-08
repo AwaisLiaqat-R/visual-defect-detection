@@ -57,7 +57,7 @@ Cost per 1,000 parts | Higher | Lower |
 ## Project layout
 
 
-.
+
 ├── src/
 │   ├── models.py        ResNet-18 architecture
 │   ├── train.py         training loop
