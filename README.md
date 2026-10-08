@@ -1,273 +1,154 @@
-# 🏭 DefectVision AI — Catch Broken Parts Before They Ship
+# DefectVision AI
 
-> **In plain English:** This is an AI system that looks at photos of factory parts and instantly tells you if they're good or broken — like a tireless quality inspector that never blinks, never gets tired, and checks 78 parts per second.
+A small service that looks at a photo of a manufactured part and tells you whether it's fine or defective. You upload an image, and it answers in well under a second.
+## What this project does
 
-[![Live Demo](https://img.shields.io/badge/🚀_Live_Demo-Vercel-black?style=for-the-badge)](https://defect-vision-demo.vercel.app)
-[![API Docs](https://img.shields.io/badge/📖_API_Docs-Render-46E3B7?style=for-the-badge)](https://defect-detection-api.onrender.com/docs)
-[![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)](https://python.org)
-[![PyTorch](https://img.shields.io/badge/PyTorch-ResNet--18-EE4C2C?logo=pytorch&logoColor=white)](https://pytorch.org)
-[![FastAPI](https://img.shields.io/badge/API-FastAPI-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
-[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)](https://docker.com)
+Picture a factory producing thousands of metal parts an hour. Every so often a scratched or cracked one slips down the line. A person inspecting by eye gets tired and can realistically check about one part per second.
 
----
+This model handles roughly 78 images per second when run in batches, and a single image comes back in about 47 ms. You send a photo, and the reply is either "normal" or "defective", along with how confident the model is.
 
-## 🤔 What Does This Actually Do?
+## Results
 
-Imagine a factory making thousands of metal parts every hour. Somewhere on that conveyor belt, a scratched or cracked part sneaks through. A human inspector would get tired, miss things, and can only check maybe 1 part per second.
-
-**This AI checks 78 parts per second and misses almost nothing.**
-
-You send it a photo → It replies in under 50ms → ✅ **"Normal"** or ❌ **"Defective"**
-
-That's it. That's the product.
-
----
-
-## 🎯 Results At a Glance
-
-| What We Measured | Score | What It Means |
+| Metric | Score | What it means |
 |:---|:---:|:---|
-| **Overall Accuracy** | **96.4%** | Gets the right answer 96 out of 100 times |
-| **Defect Detection Rate** | **92.5%** | Catches 92-98 out of every 100 broken parts |
-| **False Alarm Rate** | Low | Rarely flags a good part as broken |
-| **Speed** | **~47ms** | Checks one part faster than the blink of an eye |
+| Overall accuracy | 96.4% | About 96 correct answers out of every 100 parts |
+| Defect detection rate | 92.5% | Catches roughly 92 of every 100 defective parts |
+| False alarms | Low | Good parts are rarely flagged by mistake |
+| Latency | ~47 ms | Per image, on a regular CPU |
 
-> **Why does "catching defects" matter more than raw accuracy?**
-> In manufacturing, shipping a broken part to a customer is 10× more costly than stopping a good part for a manual check. So we tuned the AI to be extra cautious — it would rather flag 10 good parts than miss 1 bad one.
+Raw accuracy isn't the number we care about most. Shipping a broken part to a customer costs far more than pulling a good part aside for a second look, so we treated a missed defect as about ten times worse than a false alarm. The model is deliberately tuned to be cautious: it would rather flag a few good parts than let a bad one through.
 
----
+## How it works
 
-## ⚡ Try It Right Now (No Setup Needed)
+We didn't train a network from scratch. We started with ResNet-18, which was already pre-trained on a large general image set and so already understands edges, textures and shapes. Then we fine-tuned it on photos of surface defects.
 
-### Option 1 — Use the Live Demo
-> 👉 **[defect-vision-demo.vercel.app](https://defect-vision-demo.vercel.app)**
+This approach has a few practical benefits:
 
-1. Open the link
-2. Drag & drop any component photo
-3. Hit **"Run Inference"**
-4. See the result in under a second
+- Training takes hours instead of days.
+- It works well even with a fairly small dataset.
+- It runs on an ordinary CPU, so no GPU is needed for inference.
 
-### Option 2 — Use the API Directly
-```bash
-# Check if the service is alive
-curl https://defect-detection-api.onrender.com/health
+The intended setup on a production line looks like this:
+Camera takes a photo of the part
+       
+ResNet-18 scans the surface for scratches, cracks and fractures
 
-# Analyse an image (returns JSON)
-curl -X POST "https://defect-detection-api.onrender.com/predict" \
-     -F "file=@your_part_photo.jpg"
-```
+Model returns "normal" or "defective"
 
-**What you get back:**
-```json
-{
-  "predicted_class": "defective",
-  "confidence": 0.984,
-  "probabilities": {
-    "normal": 0.016,
-    "defective": 0.984
-  },
-  "is_defective": true,
-  "latency_ms": 47.3
-}
-```
+Sorting machine acts on the result
 
----
+Good part continues  |  Defective part is set aside for review
 
-## 🧠 How the AI Works (Simple Version)
+## Two kinds of mistakes
 
-Think of it like teaching a child to spot the difference between a perfect apple and a bruised one — except instead of apples, we're looking at metal surfaces, and instead of a child, we're using a neural network that has already "seen" millions of images.
+Mistake What happens Rough cost Missed defect (false negative) A broken part reaches the customer $10
 
-```
-📷 Factory Camera
-      ↓
-  Takes a photo of the part
-      ↓
-🧠 Our AI (ResNet-18)
-      ↓
-  Scans for scratches, cracks, fractures
-      ↓
-⚖️ Makes a decision (Normal or Defective?)
-      ↓
-🤖 Sends signal to the sorting machine
-      ↓
-✅ Good part → continues  |  ❌ Bad part → diverted for review
-```
+False alarm (false positive) A good part goes to manual review $1
 
-### Why ResNet-18? (The Engine Under the Hood)
+Because the first mistake is so much more expensive, we lowered the decision threshold so the model flags a part as defective more readily. Tuning the threshold this way improved results on both counts:
 
-We didn't build our AI from scratch. We took a pre-trained model — one that had already learned to recognize shapes, edges, and textures from millions of images — and then **fine-tuned** it specifically on factory defect photos.
+Default threshold Tuned threshold 
+Accuracy | 96.8% | 97.4% |
 
-Think of it like hiring an expert photographer and teaching them the specific defects to look for, rather than teaching someone photography from zero.
+Defect catch rate | 95.8% | 98.4% |
 
-**The benefit?**
-- Faster training (hours, not days)
-- Better accuracy on small datasets
-- Runs on a regular laptop CPU — no expensive GPU needed
+Cost per 1,000 parts | Higher | Lower |
 
----
+## Project layout
 
-## 📊 Understanding Our Performance Numbers
 
-### Two Types of Mistakes
-
-| Mistake Type | What Happened | Cost |
-|:---|:---|:---:|
-| 🔴 **Missed Defect** (False Negative) | Broken part shipped to customer | High ($10) |
-| 🟡 **False Alarm** (False Positive) | Good part sent for manual review | Low ($1) |
-
-Since missing a defect is 10× worse than a false alarm, we adjusted our AI to be more sensitive — catching more defects even if it occasionally flags a good part. This is called **threshold tuning**.
-
-### Before vs After Tuning
-
-| | Default Setting | After Tuning |
-|:---|:---:|:---:|
-| Accuracy | 96.8% | **97.4%** |
-| Defect Catch Rate | 95.8% | **98.4%** ✅ |
-| Cost per 1000 parts | Higher | **Lower** |
-
----
-
-## 🗂️ What's Inside This Project
-
-```
-📁 Project Root
+.
+├── src/
+│   ├── models.py        ResNet-18 architecture
+│   ├── train.py         training loop
+│   ├── evaluate.py      evaluation and metrics
+│   └── infer.py         inference code used by the API
 │
-├── 📁 src/              ← The AI brain
-│   ├── models.py        ← ResNet-18 architecture
-│   ├── train.py         ← How the AI learns
-│   ├── evaluate.py      ← How we test it
-│   └── infer.py         ← How we use it in production
+├── api/
+│   └── app.py           FastAPI app (/predict, /batch-predict, /health, /metrics)
 │
-├── 📁 api/              ← The web service (FastAPI)
-│   └── app.py           ← /predict, /batch-predict, /health
+├── checkpoints/
+│   └── best_model.pth   trained model weights (about 128 MB)
 │
-├── 📁 checkpoints/      ← The trained AI model file
-│   └── best_model.pth   ← 128MB — the "brain" weights
+├── vercel-demo/
+│   └── index.html       drag-and-drop demo page
 │
-├── 📁 vercel-demo/      ← The live demo website
-│   └── index.html       ← Drag-and-drop demo UI
-│
-├── 📁 tests/            ← Automated quality checks
-├── Dockerfile           ← Package everything into a container
-├── render.yaml          ← Deploy to Render.com
-└── README.md            ← You are here 👋
-```
+├── tests/               automated tests
+├── Dockerfile
+├── render.yaml          Render.com deployment config
+└── README.md
 
----
-
-## 🚀 Run It Yourself (Step by Step)
-
-### Prerequisites
-- Python 3.11+
-- Git
-
-### 1. Get the code
-```bash
-git clone https://github.com/your-username/defect-detection.git
-cd defect-detection
-```
 
 ### 2. Install dependencies
-```bash
 python -m venv venv
 venv\Scripts\activate        # Windows
 # source venv/bin/activate   # Mac/Linux
 
 pip install -r requirements.txt
-```
 
-### 3. Start the API server
-```bash
+
+### 3. Start the API
 uvicorn api.app:app --host 0.0.0.0 --port 8000 --reload
-```
+Open [http://localhost:8000/docs](http://localhost:8000/docs) and you'll get an interactive page where you can upload images and try the endpoints from your browser.
 
-Then open **[http://localhost:8000/docs](http://localhost:8000/docs)** — you'll see an interactive page where you can upload images and test the API directly in your browser.
+### 4. Or use Docker
 
-### 4. Run with Docker (even easier)
-```bash
 docker-compose up --build
-```
-Same result, no Python setup needed. Just Docker.
 
----
+This gives you the same result without setting up Python yourself.
 
-## 📡 API Reference
 
-### Check if the service is running
-```
-GET /health
-```
-Returns: `{ "status": "healthy", "model_loaded": true }`
+## API reference
 
-### Analyse one image
-```
-POST /predict
-Body: form-data with "file" = your image
-```
+**`GET /health`**
+Confirms the service is running. Returns `{ "status": "healthy", "model_loaded": true }`.
 
-### Analyse many images at once (batch mode)
-```
-POST /batch-predict
-Body: form-data with multiple "files"
-```
-Perfect for processing a full batch of parts at once.
+**`POST /predict`**
+Analyses a single image. Send form-data with the image in a field called `file`.
 
-### See usage statistics
-```
-GET /metrics
-```
-Returns: total inspections, defect rate, average response time.
+**`POST /batch-predict`**
+Analyses several images in one request. Send form-data with multiple `files`. Useful for checking a whole batch of parts at once.
 
----
+**`GET /metrics`**
+Usage statistics: total inspections, defect rate and average response time.
 
-## 🐳 Deployment
+## Deployment
 
-This project is deployed in two parts:
+The project is deployed in two parts:
 
 | Part | Platform | URL |
 |:---|:---|:---|
-| **AI Backend** (FastAPI + model) | Render.com | `https://defect-detection-api.onrender.com` |
-| **Demo Website** | Vercel | `https://defect-vision-demo.vercel.app` |
+| API and model (FastAPI) | Render.com | https://defect-detection-api.onrender.com |
+| Demo website | Vercel | https://defect-vision-demo.vercel.app |
 
-To deploy your own copy, see the [Deployment Guide](./vercel-demo/vercel.json).
+If you want to host your own copy, `render.yaml` covers the backend and `vercel-demo/vercel.json` covers the demo site.
 
----
 
-## ⚠️ Known Limitations
+## Known limitations
 
-**1. Lighting Changes**
-The AI was trained under specific lighting conditions. If your factory uses very different lighting, accuracy may drop. Solution: retrain with your specific images.
+**Lighting.** The model was trained under one set of lighting conditions. If your factory is lit very differently, accuracy can drop. The fix is to retrain or fine-tune with photos from your own line.
 
-**2. It tells you *that* something is wrong, not *where***
-Right now it gives a yes/no answer. A future version could draw a box around the exact defect location.
+**It says whether, not where.** The output is a yes/no answer. It doesn't mark the location of the defect. Drawing a box around the flaw would be a sensible next step.
 
-**3. First request is slow on the free hosting plan**
-Render.com's free tier "goes to sleep" after 15 minutes of no traffic. The first request after that takes ~30 seconds to wake up. Subsequent requests are fast.
+**Slow first request on the free tier.** Render's free plan puts the service to sleep after 15 minutes without traffic. The first request after that can take about 30 seconds while it wakes up. Everything after that is fast.
 
----
+## Demo walkthrough
 
-## 🎥 2-Minute Demo Script
+If you're presenting the project, this is the order we used:
 
-| Time | What You See | What's Happening |
-|:---|:---|:---|
-| **0:00 - 0:35** | Factory camera feed → dataset | We collected 3,000+ surface photos and labelled them |
-| **0:35 - 1:20** | Two models training side by side | Custom CNN vs pre-trained ResNet-18 — one clearly wins |
-| **1:20 - 2:00** | Confusion matrix & threshold graph | We tuned the sensitivity to prioritise catching defects |
-| **2:00 - 2:45** | Live API demo in the browser | Upload a photo → get a result in under 50ms |
+| Time | On screen | What's happening |
+| 0:00 - 0:35 | Dataset samples | About 3,000 labelled surface photos used for training |
+| 0:35 - 1:20 | Two models training side by side | A custom CNN against pre-trained ResNet-18; ResNet-18 comes out ahead |
+| 1:20 - 2:00 | Confusion matrix and threshold plot | Tuning the threshold to catch more defects |
+| 2:00 - 2:45 | Live demo in the browser | Upload a photo and get a result in under 50 ms |
 
----
 
-## 🛠️ Built With
+## Built with
 
-| Technology | What It Does |
-|:---|:---|
-| **PyTorch + ResNet-18** | The AI model that analyses images |
-| **FastAPI** | The web server that accepts photo uploads |
-| **Docker** | Packages everything so it runs anywhere |
-| **Render.com** | Hosts the AI backend in the cloud |
-| **Vercel** | Hosts the demo website |
-| **KolektorSDD2 Dataset** | 3,000+ labelled industrial surface photos for training |
-
----
-
-*Built for manufacturing quality control. Accuracy: 96.4% | Speed: ~47ms | Always on.*
+| Tool | Used for |
+| PyTorch and ResNet-18 | The image classification model |
+| FastAPI | The web server that accepts uploads |
+| Docker | Packaging, so it runs the same everywhere |
+| Render.com | Hosting the backend |
+| Vercel | Hosting the demo page |
+| KolektorSDD2 | Roughly 3,000 labelled industrial surface images used for training |
