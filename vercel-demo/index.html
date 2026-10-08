@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DefectVision AI — Industrial Surface Defect Detection</title>
+  <meta name="description" content="Production-grade AI defect detection system for manufacturing quality control. Upload industrial component images to classify Normal vs Defective in real time." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #060910;
+      --surface:    #0d1117;
+      --surface2:   #161b22;
+      --surface3:   #21262d;
+      --border:     rgba(255,255,255,0.08);
+      --border2:    rgba(255,255,255,0.14);
+      --accent:     #00d4aa;
+      --accent2:    #7c3aed;
+      --danger:     #f87171;
+      --warning:    #fbbf24;
+      --safe:       #34d399;
+      --text:       #e6edf3;
+      --muted:      #8b949e;
+      --radius:     16px;
+      --radius-sm:  10px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 10% 10%, rgba(0,212,170,0.07) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 50% at 90% 80%, rgba(124,58,237,0.07) 0%, transparent 60%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .page { position: relative; z-index: 1; }
+
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 40px;
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(12px);
+      background: rgba(6,9,16,0.7);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text);
+      text-decoration: none;
+    }
+
+    .logo-icon {
+      width: 34px;
+      height: 34px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+    }
+
+    .badge {
+      font-size: 0.65rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      padding: 3px 8px;
+      border-radius: 20px;
+      background: rgba(0,212,170,0.12);
+      color: var(--accent);
+      border: 1px solid rgba(0,212,170,0.25);
+      text-transform: uppercase;
+    }
+
+    .nav-stats {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .stat-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.78rem;
+      color: var(--muted);
+      padding: 6px 12px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+    }
+
+    .stat-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--warning);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.85); }
+    }
+
+    .hero {
+      text-align: center;
+      padding: 80px 24px 60px;
+      max-width: 860px;
+      margin: 0 auto;
+    }
+
+    .hero-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--accent);
+      border: 1px solid rgba(0,212,170,0.3);
+      background: rgba(0,212,170,0.06);
+      padding: 6px 14px;
+      border-radius: 20px;
+      margin-bottom: 28px;
+    }
+
+    h1 {
+      font-size: clamp(2.4rem, 5vw, 3.8rem);
+      font-weight: 900;
+      line-height: 1.12;
+      margin-bottom: 22px;
+      background: linear-gradient(135deg, #e6edf3 30%, var(--accent) 70%, var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero p {
+      font-size: 1.05rem;
+      color: var(--muted);
+      max-width: 600px;
+      margin: 0 auto 40px;
+      line-height: 1.7;
+    }
+
+    .metrics-strip {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      border: 1px solid var(--border2);
+      border-radius: var(--radius);
+      overflow: hidden;
+      max-width: 680px;
+      margin: 0 auto 60px;
+      background: var(--surface);
+    }
+
+    .metric-item {
+      flex: 1;
+      min-width: 120px;
+      padding: 18px 20px;
+      text-align: center;
+      border-right: 1px solid var(--border);
+    }
+
+    .metric-item:last-child { border-right: none; }
+
+    .metric-val {
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: var(--accent);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .metric-label {
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-top: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 24px 80px;
+    }
+
+    @media (max-width: 768px) {
+      .main-grid { grid-template-columns: 1fr; }
+      nav { padding: 16px 20px; }
+      .nav-stats { display: none; }
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      transition: border-color 0.3s;
+    }
+
+    .card:hover { border-color: var(--border2); }
+
+    .card-header {
+      padding: 20px 24px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .card-header h2 {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .card-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      flex-shrink: 0;
+    }
+
+    .card-body { padding: 24px; }
+
+    .upload-zone {
+      border: 2px dashed var(--border2);
+      border-radius: var(--radius-sm);
+      padding: 40px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      background: var(--surface2);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .upload-zone:hover, .upload-zone.dragging {
+      border-color: var(--accent);
+      background: rgba(0,212,170,0.04);
+    }
+
+    .upload-icon {
+      font-size: 2.8rem;
+      margin-bottom: 12px;
+      display: block;
+      animation: float 3s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-6px); }
+    }
+
+    .upload-zone h3 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .upload-zone p { font-size: 0.8rem; color: var(--muted); }
+
+    .upload-zone input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+    }
+
+    .api-config { margin-bottom: 20px; }
+
+    .api-config label {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 8px;
+    }
+
+    .api-input-row { display: flex; gap: 8px; }
+
+    .api-input {
+      flex: 1;
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      font-size: 0.82rem;
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .api-input:focus { border-color: var(--accent); }
+
+    .btn {
+      padding: 10px 18px;
+      border-radius: var(--radius-sm);
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), #00b894);
+      color: #060910;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 20px rgba(0,212,170,0.3);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-secondary {
+      background: var(--surface3);
+      color: var(--text);
+      border: 1px solid var(--border2);
+    }
+
+    .btn-secondary:hover { background: var(--surface2); }
+
+    .preview-area {
+      margin: 16px 0;
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      border: 1px solid var(--border);
+      position: relative;
+      min-height: 180px;
+      background: var(--surface2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .preview-area img {
+      width: 100%;
+      height: 220px;
+      object-fit: cover;
+      display: block;
+    }
+
+    .preview-label {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid var(--border2);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .result-box {
+      display: none;
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      border: 1px solid var(--border);
+      animation: slideUp 0.4s cubic-bezier(0.34,1.56,0.64,1);
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(20px) scale(0.97); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .result-box.show { display: block; }
+
+    .result-verdict {
+      padding: 20px 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .verdict-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+
+    .verdict-defective { background: rgba(248,113,113,0.15); border: 2px solid rgba(248,113,113,0.4); }
+    .verdict-normal { background: rgba(52,211,153,0.15); border: 2px solid rgba(52,211,153,0.4); }
+
+    .verdict-label {
+      font-size: 1.4rem;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+    }
+
+    .verdict-sub { font-size: 0.82rem; color: var(--muted); margin-top: 2px; }
+
+    .result-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1px;
+      background: var(--border);
+      border-top: 1px solid var(--border);
+    }
+
+    .result-cell { background: var(--surface); padding: 14px 18px; }
+    .result-cell-label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 4px; }
+    .result-cell-val { font-size: 1rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+
+    .conf-bar-wrap { padding: 16px 18px; background: var(--surface); border-top: 1px solid var(--border); }
+    .conf-bar-header { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--muted); margin-bottom: 8px; }
+    .conf-bar { height: 6px; border-radius: 3px; background: var(--surface3); overflow: hidden; }
+    .conf-bar-fill { height: 100%; border-radius: 3px; transition: width 0.8s cubic-bezier(0.34,1.56,0.64,1); }
+
+    .history-list { display: flex; flex-direction: column; gap: 10px; }
+    .history-empty { text-align: center; padding: 40px 20px; color: var(--muted); font-size: 0.85rem; }
+
+    .history-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      border-radius: var(--radius-sm);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      animation: slideUp 0.3s ease;
+      transition: border-color 0.2s;
+    }
+
+    .history-item:hover { border-color: var(--border2); }
+
+    .history-thumb {
+      width: 44px;
+      height: 44px;
+      border-radius: 6px;
+      object-fit: cover;
+      flex-shrink: 0;
+      background: var(--surface3);
+    }
+
+    .history-info { flex: 1; min-width: 0; }
+    .history-name { font-size: 0.82rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .history-meta { font-size: 0.72rem; color: var(--muted); margin-top: 2px; font-family: 'JetBrains Mono', monospace; }
+
+    .chip { font-size: 0.7rem; font-weight: 700; padding: 3px 9px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.05em; flex-shrink: 0; }
+    .chip-defective { background: rgba(248,113,113,0.15); color: var(--danger); border: 1px solid rgba(248,113,113,0.3); }
+    .chip-normal { background: rgba(52,211,153,0.15); color: var(--safe); border: 1px solid rgba(52,211,153,0.3); }
+
+    .slider-row { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+    .slider-row label { font-size: 0.78rem; color: var(--muted); white-space: nowrap; }
+
+    input[type="range"] {
+      flex: 1; height: 4px; background: var(--surface3);
+      border-radius: 2px; outline: none; -webkit-appearance: none; cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%;
+      background: var(--accent); cursor: pointer; box-shadow: 0 0 6px rgba(0,212,170,0.4);
+    }
+
+    .slider-val { font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; color: var(--accent); font-weight: 600; min-width: 36px; text-align: right; }
+
+    .toast {
+      position: fixed; bottom: 28px; right: 28px;
+      background: var(--surface2); border: 1px solid rgba(248,113,113,0.4);
+      color: var(--danger); padding: 14px 18px; border-radius: var(--radius-sm);
+      font-size: 0.85rem; max-width: 340px; z-index: 999; display: none;
+    }
+
+    .toast.show { display: block; animation: slideUp 0.3s ease; }
+
+    .scan-overlay {
+      position: absolute; inset: 0; background: rgba(6,9,16,0.75);
+      display: none; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+    }
+
+    .scan-overlay.show { display: flex; }
+
+    .scan-line {
+      position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      animation: scan 1.2s ease-in-out infinite;
+    }
+
+    @keyframes scan { 0% { top: 0%; opacity: 1; } 100% { top: 100%; opacity: 0.3; } }
+
+    .scan-text { font-size: 0.82rem; color: var(--accent); font-family: 'JetBrains Mono', monospace; animation: blink 1s step-end infinite; }
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+    footer { border-top: 1px solid var(--border); padding: 24px 40px; text-align: center; color: var(--muted); font-size: 0.78rem; }
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+
+    .action-row { display: flex; gap: 8px; margin-top: 16px; }
+    .action-row .btn { flex: 1; justify-content: center; }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <nav>
+    <a href="#" class="logo">
+      <div class="logo-icon">🔍</div>
+      DefectVision <span class="badge">AI</span>
+    </a>
+    <div class="nav-stats">
+      <div class="stat-pill" id="api-status-pill">
+        <span class="stat-dot" id="status-dot"></span>
+        <span id="status-text">Connecting…</span>
+      </div>
+      <div class="stat-pill">🧠 ResNet-18 · 96.4% Acc</div>
+      <div class="stat-pill">⚡ &lt;50ms CPU</div>
+    </div>
+  </nav>
+
+  <section class="hero">
+    <div class="hero-tag">🏭 Production AI · KolektorSDD2 · ResNet-18</div>
+    <h1>Industrial Surface<br/>Defect Detection</h1>
+    <p>Upload component images to instantly classify <strong>Normal</strong> vs <strong>Defective</strong> using our fine-tuned ResNet-18 model. Powered by a live FastAPI inference service.</p>
+
+    <div class="metrics-strip">
+      <div class="metric-item">
+        <div class="metric-val">96.4%</div>
+        <div class="metric-label">Accuracy</div>
+      </div>
+      <div class="metric-item">
+        <div class="metric-val">92.5%</div>
+        <div class="metric-label">Defect Recall</div>
+      </div>
+      <div class="metric-item">
+        <div class="metric-val">0.981</div>
+        <div class="metric-label">ROC-AUC</div>
+      </div>
+      <div class="metric-item">
+        <div class="metric-val">&lt;50ms</div>
+        <div class="metric-label">CPU Latency</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="main-grid">
+    <div style="display:flex;flex-direction:column;gap:20px;">
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon" style="background:rgba(124,58,237,0.15);">🌐</div>
+          <h2>API Endpoint</h2>
+        </div>
+        <div class="card-body">
+          <div class="api-config">
+            <label>Backend URL (Render.com)</label>
+            <div class="api-input-row">
+              <input id="api-url" class="api-input" type="text"
+                value="https://defect-detection-api.onrender.com"
+                placeholder="https://your-app.onrender.com" />
+              <button class="btn btn-secondary" id="ping-btn" onclick="pingAPI()">Ping</button>
+            </div>
+          </div>
+          <div class="slider-row">
+            <label>Threshold τ</label>
+            <input type="range" id="threshold" min="0.05" max="0.95" step="0.01" value="0.21" oninput="updateThreshold(this.value)" />
+            <span class="slider-val" id="threshold-val">0.21</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon" style="background:rgba(0,212,170,0.12);">📤</div>
+          <h2>Upload Image</h2>
+        </div>
+        <div class="card-body">
+          <div class="upload-zone" id="drop-zone">
+            <input type="file" id="file-input" accept="image/jpeg,image/png,image/bmp,image/webp" onchange="handleFile(this.files[0])" />
+            <span class="upload-icon">🏭</span>
+            <h3>Drop component image here</h3>
+            <p>JPEG / PNG / BMP / WebP · Max 10 MB</p>
+          </div>
+
+          <div class="preview-area" id="preview-area" style="display:none;">
+            <img id="preview-img" src="" alt="Preview" />
+            <div class="scan-overlay" id="scan-overlay">
+              <div class="scan-line"></div>
+              <div class="spinner"></div>
+              <div class="scan-text">ANALYZING…</div>
+            </div>
+            <div class="preview-label" id="preview-label" style="display:none;"></div>
+          </div>
+
+          <div class="action-row">
+            <button class="btn btn-primary" id="run-btn" onclick="runInference()" disabled>
+              🔬 Run Inference
+            </button>
+            <button class="btn btn-secondary" onclick="clearAll()">Clear</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:20px;">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon" style="background:rgba(251,191,36,0.12);">📊</div>
+          <h2>Inspection Result</h2>
+        </div>
+        <div class="card-body" style="padding:0;">
+          <div id="result-empty" style="padding:50px 24px;text-align:center;color:var(--muted);font-size:0.9rem;">
+            <div style="font-size:2.5rem;margin-bottom:10px;">🔍</div>
+            Upload an image and run inference to see the result
+          </div>
+          <div class="result-box" id="result-box">
+            <div class="result-verdict" id="result-verdict">
+              <div class="verdict-icon" id="verdict-icon"></div>
+              <div>
+                <div class="verdict-label" id="verdict-label"></div>
+                <div class="verdict-sub" id="verdict-sub"></div>
+              </div>
+            </div>
+            <div class="result-grid">
+              <div class="result-cell">
+                <div class="result-cell-label">Confidence</div>
+                <div class="result-cell-val" id="res-confidence">—</div>
+              </div>
+              <div class="result-cell">
+                <div class="result-cell-label">Latency</div>
+                <div class="result-cell-val" id="res-latency">—</div>
+              </div>
+              <div class="result-cell">
+                <div class="result-cell-label">P(Normal)</div>
+                <div class="result-cell-val" id="res-normal">—</div>
+              </div>
+              <div class="result-cell">
+                <div class="result-cell-label">P(Defective)</div>
+                <div class="result-cell-val" id="res-defective">—</div>
+              </div>
+            </div>
+            <div class="conf-bar-wrap">
+              <div class="conf-bar-header">
+                <span>Normal ←</span>
+                <span style="color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:0.72rem" id="threshold-indicator">τ = 0.21</span>
+                <span>→ Defective</span>
+              </div>
+              <div class="conf-bar">
+                <div class="conf-bar-fill" id="conf-bar-fill" style="width:0%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon" style="background:rgba(0,212,170,0.12);">📋</div>
+          <h2>Inspection History</h2>
+          <span id="history-count" class="badge" style="margin-left:auto;">0 scans</span>
+        </div>
+        <div class="card-body" style="max-height:320px;overflow-y:auto;">
+          <div class="history-list" id="history-list">
+            <div class="history-empty" id="history-empty">No inspections yet. Upload an image to start.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <p>DefectVision AI · ResNet-18 Transfer Learning · KolektorSDD2 Dataset · Backend: <a href="https://render.com" target="_blank">Render</a> · Frontend: <a href="https://vercel.com" target="_blank">Vercel</a></p>
+    <p style="margin-top:6px;">96.4% Accuracy · 92.5% Defect Recall · &lt;50ms CPU Inference</p>
+  </footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  let currentFile = null;
+  let history = [];
+  let threshold = 0.21;
+
+  function getApiUrl() {
+    return document.getElementById('api-url').value.replace(/\/$/, '');
+  }
+
+  function updateThreshold(val) {
+    threshold = parseFloat(val);
+    document.getElementById('threshold-val').textContent = threshold.toFixed(2);
+    document.getElementById('threshold-indicator').textContent = 'τ = ' + threshold.toFixed(2);
+  }
+
+  async function pingAPI() {
+    const dot = document.getElementById('status-dot');
+    const txt = document.getElementById('status-text');
+    const btn = document.getElementById('ping-btn');
+    btn.textContent = '…'; btn.disabled = true;
+    dot.style.background = 'var(--warning)';
+    txt.textContent = 'Connecting…';
+    try {
+      const res = await fetch(getApiUrl() + '/health', { signal: AbortSignal.timeout(8000) });
+      const data = await res.json();
+      if (data.status === 'healthy') {
+        dot.style.background = 'var(--safe)';
+        txt.textContent = 'Online · ' + (data.model_type || 'ResNet-18');
+      } else {
+        dot.style.background = 'var(--warning)';
+        txt.textContent = 'Degraded — model loading';
+      }
+    } catch (e) {
+      dot.style.background = 'var(--danger)';
+      txt.textContent = 'Offline — check URL';
+    }
+    btn.textContent = 'Ping'; btn.disabled = false;
+  }
+
+  function handleFile(file) {
+    if (!file) return;
+    currentFile = file;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      document.getElementById('preview-img').src = e.target.result;
+      document.getElementById('preview-area').style.display = 'flex';
+      document.getElementById('drop-zone').style.display = 'none';
+      document.getElementById('run-btn').disabled = false;
+      document.getElementById('preview-label').style.display = 'none';
+    };
+    reader.readAsDataURL(file);
+    document.getElementById('result-box').classList.remove('show');
+    document.getElementById('result-empty').style.display = 'block';
+  }
+
+  const dz = document.getElementById('drop-zone');
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragging'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('dragging'));
+  dz.addEventListener('drop', e => {
+    e.preventDefault(); dz.classList.remove('dragging');
+    if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+  });
+
+  async function runInference() {
+    if (!currentFile) return;
+    const btn = document.getElementById('run-btn');
+    const scan = document.getElementById('scan-overlay');
+    btn.disabled = true; btn.innerHTML = '⏳ Analyzing…'; scan.classList.add('show');
+    const formData = new FormData();
+    formData.append('file', currentFile);
+    try {
+      const res = await fetch(getApiUrl() + '/predict?threshold=' + threshold, {
+        method: 'POST', body: formData, signal: AbortSignal.timeout(30000)
+      });
+      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.detail || 'HTTP ' + res.status); }
+      const data = await res.json();
+      showResult(data); addHistory(data, currentFile);
+    } catch (e) {
+      showToast('⚠️ ' + (e.message || 'Inference failed. Is the backend running?'));
+    } finally {
+      btn.disabled = false; btn.innerHTML = '🔬 Run Inference'; scan.classList.remove('show');
+    }
+  }
+
+  function showResult(data) {
+    const isDefective = data.is_defective;
+    const conf = (data.confidence * 100).toFixed(1);
+    const pDef = (data.probabilities.defective * 100).toFixed(1);
+    const pNorm = (data.probabilities.normal * 100).toFixed(1);
+
+    const vi = document.getElementById('verdict-icon');
+    const vl = document.getElementById('verdict-label');
+    const vs = document.getElementById('verdict-sub');
+    const vw = document.getElementById('result-verdict');
+    const bf = document.getElementById('conf-bar-fill');
+    const pl = document.getElementById('preview-label');
+
+    if (isDefective) {
+      vi.textContent = '⚠️'; vi.className = 'verdict-icon verdict-defective';
+      vl.textContent = '🔴 DEFECTIVE'; vl.style.color = 'var(--danger)';
+      vw.style.background = 'rgba(248,113,113,0.05)';
+      bf.style.background = 'linear-gradient(90deg, #f87171, #ef4444)'; bf.style.width = pDef + '%';
+      pl.style.background = 'rgba(248,113,113,0.85)'; pl.style.color = '#fff'; pl.textContent = '⚠ DEFECTIVE';
+    } else {
+      vi.textContent = '✅'; vi.className = 'verdict-icon verdict-normal';
+      vl.textContent = '🟢 NORMAL'; vl.style.color = 'var(--safe)';
+      vw.style.background = 'rgba(52,211,153,0.05)';
+      bf.style.background = 'linear-gradient(90deg, #34d399, #10b981)'; bf.style.width = pNorm + '%';
+      pl.style.background = 'rgba(52,211,153,0.85)'; pl.style.color = '#060910'; pl.textContent = '✔ NORMAL';
+    }
+
+    pl.style.display = 'block';
+    vs.textContent = 'Confidence: ' + conf + '% · τ=' + data.threshold_used;
+    document.getElementById('res-confidence').textContent = conf + '%';
+    document.getElementById('res-latency').textContent = data.latency_ms + ' ms';
+    document.getElementById('res-normal').textContent = pNorm + '%';
+    document.getElementById('res-defective').textContent = pDef + '%';
+    document.getElementById('threshold-indicator').textContent = 'τ = ' + data.threshold_used;
+    document.getElementById('result-empty').style.display = 'none';
+    document.getElementById('result-box').classList.add('show');
+  }
+
+  function addHistory(data, file) {
+    history.unshift({ data, file });
+    const list = document.getElementById('history-list');
+    document.getElementById('history-empty').style.display = 'none';
+    document.getElementById('history-count').textContent = history.length + ' scan' + (history.length > 1 ? 's' : '');
+    const item = document.createElement('div');
+    item.className = 'history-item';
+    const chip = data.is_defective
+      ? '<span class="chip chip-defective">Defective</span>'
+      : '<span class="chip chip-normal">Normal</span>';
+    const thumb = document.getElementById('preview-img').src;
+    item.innerHTML = '<img class="history-thumb" src="' + thumb + '" alt="" /><div class="history-info"><div class="history-name">' + file.name + '</div><div class="history-meta">' + (data.confidence*100).toFixed(1) + '% conf · ' + data.latency_ms + 'ms</div></div>' + chip;
+    list.insertBefore(item, list.firstChild);
+  }
+
+  function clearAll() {
+    currentFile = null;
+    document.getElementById('preview-area').style.display = 'none';
+    document.getElementById('drop-zone').style.display = 'block';
+    document.getElementById('run-btn').disabled = true;
+    document.getElementById('file-input').value = '';
+    document.getElementById('result-box').classList.remove('show');
+    document.getElementById('result-empty').style.display = 'block';
+    document.getElementById('preview-label').style.display = 'none';
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 5000);
+  }
+
+  window.addEventListener('DOMContentLoaded', () => setTimeout(pingAPI, 800));
+</script>
+</body>
+</html>
