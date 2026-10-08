@@ -54,29 +54,38 @@ Defect catch rate | 95.8% | 98.4% |
 
 Cost per 1,000 parts | Higher | Lower |
 
-## Project layout
+### Project Layout
 
-
-
+```text
+.
 ├── src/
-│   ├── models.py        ResNet-18 architecture
-│   ├── train.py         training loop
-│   ├── evaluate.py      evaluation and metrics
-│   └── infer.py         inference code used by the API
-│
+│   ├── models.py
+│   ├── train.py
+│   ├── evaluate.py
+│   └── infer.py
 ├── api/
-│   └── app.py           FastAPI app (/predict, /batch-predict, /health, /metrics)
-│
+│   └── app.py
 ├── checkpoints/
-│   └── best_model.pth   trained model weights (about 128 MB)
-│
+│   └── best_model.pth
 ├── vercel-demo/
-│   └── index.html       drag-and-drop demo page
-│
-├── tests/               automated tests
+│   └── index.html
+├── tests/
 ├── Dockerfile
-├── render.yaml          Render.com deployment config
+├── render.yaml
 └── README.md
+```
+
+#### File Descriptions
+* **`src/models.py`**: ResNet-18 architecture.
+* **`src/train.py`**: Model training loop.
+* **`src/evaluate.py`**: Evaluation script and accuracy metrics.
+* **`src/infer.py`**: Inference code used by the API backend.
+* **`api/app.py`**: FastAPI application exposing `/predict`, `/batch-predict`, `/health`, and `/metrics`.
+* **`checkpoints/best_model.pth`**: Trained model weights (~128 MB).
+* **`vercel-demo/index.html`**: Frontend drag-and-drop web demo page.
+* **`tests/`**: Automated unit and integration tests.
+* **`render.yaml`**: Infrastructure-as-code deployment configuration for Render.com.
+* **`Dockerfile`**: Containerization setup for production.
 
 
 ### 2. Install dependencies
